@@ -24,7 +24,9 @@ hashed_pin.update(aes_key)
 hashed_pin = hashed_pin.digest()
 
 cipher = AES.new(hashed_pin, AES.MODE_CBC)
-ciphertext = cipher.encrypt(pad(private_key, AES.block_size))
+#ciphertext = cipher.encrypt(pad(private_key, AES.block_size))
+iv = cipher.iv
+ciphertext = iv + cipher.encrypt(pad(private_key, AES.block_size))
 
 dir_path = os.getcwd()
 public_key_path = os.path.join(dir_path, "public_key")
