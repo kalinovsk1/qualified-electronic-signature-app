@@ -14,6 +14,19 @@ def find_usb_drive():
             return partition.mountpoint
     return None
 
+
+def public_key_path():
+    try:
+        file = os.path.join("..", "key-generator-app", "public_key", "public_key.bin")
+        with open(file, "rb") as f:
+            public_key = RSA.import_key(f.read())
+        return public_key
+    
+    except Exception as e:
+        messagebox.showerror("Error", "Failure to read public key")
+        return None
+
+
 def pin_window(section, file):
     def verify_pin(pin):
         # load key from pendrive
@@ -26,14 +39,10 @@ def pin_window(section, file):
             x = pin.encode()
             decrypted_key = decrypt_private_key(key, x)
             messagebox.showinfo("Success", "Valid PIN")
-            #encryption
+            # TODO: decryption
             if section == 1:
-                if file != "":
-                    #encryption(file ,decrypted_key)
-                    x=1
-                else:
-                    messagebox.showerror("Error", "Niepoprawny Plik")
-            #sign
+                decryption(file ,decrypted_key)
+            # TODO: sign
             if section == 2:
                 sign_file()
         except ValueError:
@@ -54,6 +63,7 @@ def pin_window(section, file):
     pin_button = Button(pin_window, text="Submit", command=lambda: verify_pin(pin_entry.get()))
     pin_button.grid(row=2, sticky="ew", pady=5, padx=10)
     pin_window.mainloop()
+
 
 def decrypt_private_key(key, PIN):
     iv = key[:AES.block_size]
@@ -76,10 +86,26 @@ def verify_file():
     x=1
 
 
-def encryption(file, key):
-    # TODO: implement encryption
-    cipher = PKCS1_OAEP.new(key)
-    cipherfile = cipher.encrypt(file)
+def encryption_file(file):
+    try:
+        file = file.replace('/', '//')
+        file_name, file_extension = os.path.splitext(file)
+        encrypted_file_path = f"{file_name}_encrypted{file_extension}"
+        key = public_key_path()
+        cipher = PKCS1_OAEP.new(key)
+        # smaller block encryption 
+        with open(file, 'rb') as f:
+            while True:
+                block = f.read(128)
+                if not block:
+                    break    
+                cipherfile = cipher.encrypt(block)
+                # save encrypted file
+                with open(encrypted_file_path, 'ab') as ff:
+                    ff.write(cipherfile)
+        messagebox.showinfo("Success", "File successfully encrypted")
+    except:
+        messagebox.showerror("Error", "Invalid file")
 
 
 def decryption():
