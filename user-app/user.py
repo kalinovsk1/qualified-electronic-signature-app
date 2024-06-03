@@ -67,7 +67,7 @@ open_file_button4 = Button(decryption, text="Select a file to decrypt", command=
 open_file_button4.grid(row=1, column=0, sticky="ew", padx=100, pady=10)
 file_label4 = Label(decryption, text="No File Selected", bg='white smoke')
 file_label4.grid(row=2, column=0, sticky="ew", padx=20)
-decryption_button = Button(decryption, text="DECRYPT", bg='thistle')
+decryption_button = Button(decryption, text="DECRYPT", bg='thistle', command=lambda: pin_window(1, file_label4.cget("text")))
 decryption_button.grid(row=3, column=0, sticky="ew", padx=100, pady=10)
 
 # message encryption section - user B

@@ -37,11 +37,11 @@ def pin_window(section, file):
         #check PIN
         try:
             x = pin.encode()
-            decrypted_key = decrypt_private_key(key, x)
+            decrypted_private_key = decrypt_private_key(key, x)
             messagebox.showinfo("Success", "Valid PIN")
             # TODO: decryption
             if section == 1:
-                decryption(file ,decrypted_key)
+                decryption(file ,decrypted_private_key)
             # TODO: sign
             if section == 2:
                 sign_file()
@@ -104,10 +104,27 @@ def encryption_file(file):
                 with open(encrypted_file_path, 'ab') as ff:
                     ff.write(cipherfile)
         messagebox.showinfo("Success", "File successfully encrypted")
-    except:
-        messagebox.showerror("Error", "Invalid file")
+    except Exception as e:
+        messagebox.showerror("Error", f"Encryption failed: {e}")
 
 
-def decryption():
-    # TODO: implement decryption
-    x = 1
+def decryption(file, key):
+    try:
+        file = file.replace('/', '//')
+        file_name, file_extension = os.path.splitext(file)
+        decrypted_file_path = f"{file_name}_decrypted{file_extension}"
+        private_key = RSA.import_key(key)
+        cipher = PKCS1_OAEP.new(private_key)
+        
+        with open(file, 'rb') as f:
+            with open(decrypted_file_path, 'wb') as df:
+                while True:
+                    block = f.read(256)
+                    if not block:
+                        break
+                    decrypted_block = cipher.decrypt(block)
+                    df.write(decrypted_block)
+        
+        messagebox.showinfo("Success", "File successfully decrypted")
+    except Exception as e:
+        messagebox.showerror("Error", f"Decryption failed: {e}")
