@@ -4,9 +4,14 @@ from tkinter import filedialog, messagebox
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES
+from Crypto.Hash import SHA256
+from Crypto.Signature import pkcs1_15, PKCS1_v1_5
 from Crypto.Util.Padding import unpad
+from lxml import etree
 import hashlib
+import time
 import psutil
+import base64
 
 def find_usb_drive():
     for partition in psutil.disk_partitions():
@@ -17,7 +22,7 @@ def find_usb_drive():
 
 def public_key_path():
     try:
-        file = os.path.join("..", "key-generator-app", "public_key", "public_key.bin")
+        file = os.path.join("..", "key-generator-app" , "public_key", "public_key.bin")
         with open(file, "rb") as f:
             public_key = RSA.import_key(f.read())
         return public_key
@@ -39,12 +44,10 @@ def pin_window(section, file):
             x = pin.encode()
             decrypted_private_key = decrypt_private_key(key, x)
             messagebox.showinfo("Success", "Valid PIN")
-            # TODO: decryption
             if section == 1:
                 decryption(file ,decrypted_private_key)
-            # TODO: sign
             if section == 2:
-                sign_file()
+                sign_file(file, decrypted_private_key)
         except ValueError:
             messagebox.showerror("Error", "Invalid PIN")
         pin_window.destroy()
@@ -76,14 +79,71 @@ def decrypt_private_key(key, PIN):
     return decrypted_key
 
 
-def sign_file():
-    # TODO: implement file signing
-    x=1
+def sign_file(file, decrypted_private_key):
+    try:
+        file = file.replace('/','//')
+        file_name = os.path.splitext(os.path.basename(file))[0] 
+        file_path, file_extension = os.path.splitext(file)
+        signature_file = f"{file_path}_signature.xml"
+
+        with open(file, 'rb') as f:
+            file_content = f.read()
+        file_hash = SHA256.new(file_content)
+        private_key = RSA.import_key(decrypted_private_key)
+
+        signature = pkcs1_15.new(private_key).sign(file_hash)
+
+        root_xml = etree.Element("Signature")
+        signed_info_xml = etree.SubElement(root_xml, "SignedInfo")
+        file_name_xml = etree.SubElement(signed_info_xml, "FileName")
+        file_name_xml.text = str(file_name)
+        file_extension_xml = etree.SubElement(signed_info_xml, "FileExtension")
+        file_extension_xml.text = str(file_extension)
+        file_size_xml = etree.SubElement(signed_info_xml, "FileSize")
+        file_size_xml.text = str(os.path.getsize(file))
+        file_mod_xml = etree.SubElement(signed_info_xml, "FileModificationTime")
+        file_mod_xml.text = time.ctime(os.path.getctime(file))
+        user_info_xml = etree.SubElement(root_xml, "UserInfo")
+        username_xml = etree.SubElement(user_info_xml, "UserName")
+        username_xml.text = str(os.getlogin())
+        signature_value_xml = etree.SubElement(root_xml, "SignatureValue")
+        signature_value_xml.text = base64.b64encode(signature).decode()
+        timestamp_xml = etree.SubElement(root_xml, "TimeStamp")
+        timestamp_xml.text = str(time.ctime())
+
+        with open(signature_file, "wb") as f:
+            f.write(etree.tostring(root_xml, pretty_print=True))
+
+        messagebox.showinfo("Success", "File successfully signed")
+
+    except Exception as e:
+        messagebox.showerror("Error", f"Signature failed: {e}")
 
 
-def verify_file():
-    # TODO: implement signature verification
-    x=1
+def verify_file(file):
+    try:
+        file = file.replace('/','//')
+        file_path, file_extension = os.path.splitext(file)
+        signature_file_path = f"{file_path}_signature.xml"
+        public_key = public_key_path()
+
+        with open(signature_file_path, "rb") as f:
+            signature_xml = f.read()
+
+        root = etree.fromstring(signature_xml)
+
+        with open(file, "rb") as f:
+            file_content = f.read()
+
+        file_hash = SHA256.new(file_content)
+        signature_value_text = root.find("SignatureValue").text
+        signature_value = base64.b64decode(signature_value_text)
+        pkcs1_15.new(public_key).verify(file_hash, signature_value)
+
+        messagebox.showinfo("Success", "File successfully verified")
+
+    except Exception as e:
+        messagebox.showerror("Error", f"Verification failed: {e}")
 
 
 def encryption_file(file):
@@ -119,7 +179,7 @@ def decryption(file, key):
         with open(file, 'rb') as f:
             with open(decrypted_file_path, 'wb') as df:
                 while True:
-                    block = f.read(256)
+                    block = f.read(512)
                     if not block:
                         break
                     decrypted_block = cipher.decrypt(block)

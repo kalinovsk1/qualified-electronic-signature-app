@@ -1,5 +1,7 @@
 #binary files
 *.bin
+*.txt
+*.xml
 
 #public key catalogue
 public_key/

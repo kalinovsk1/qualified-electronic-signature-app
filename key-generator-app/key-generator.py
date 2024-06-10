@@ -14,7 +14,7 @@ def find_usb_drive():
             return partition.mountpoint
     return None
 
-rsa_key = RSA.generate(2048)
+rsa_key = RSA.generate(4096)
 private_key = rsa_key.export_key()
 public_key = rsa_key.publickey().export_key()
 
